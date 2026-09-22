@@ -1,6 +1,6 @@
 # Agenda de Espaços PNSG
 
-Aplicação web para gerenciamento de reservas de salas e espaços, com agenda diária/semanal, recorrência, cadastro de espaços, relatório em PDF e autenticação pelo Supabase.
+Aplicação web para gerenciamento de reservas de salas e espaços, com agenda diária, semanal e mensal, recorrência, cadastro de espaços, relatório em PDF e autenticação pelo Supabase.
 
 ## Tecnologias
 

@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "./lib/supabaseClient";
-import { Day, Week } from "./components/CalendarViews";
+import { Day, Month, Week } from "./components/CalendarViews";
 import { Dashboard, LoginScreen, Summary } from "./components/Dashboard";
 import {
   Detail,
@@ -293,7 +293,7 @@ function App() {
     [authLoading, setAuthLoading] = useState(true),
     [authError, setAuthError] = useState(""),
     [view, setView] = useState<"week" | "list" | "spaces">("week"),
-    [mode, setMode] = useState<"day" | "week">("week"),
+    [mode, setMode] = useState<"day" | "week" | "month">("week"),
     [date, setDate] = useState(today),
     [room, setRoom] = useState("all"),
     [search, setSearch] = useState(""),
@@ -340,8 +340,25 @@ function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
   const days = daysOf(date),
-    start = iso(days[0]),
-    end = iso(days[6]);
+    start =
+      mode === "month"
+        ? iso(new Date(date.getFullYear(), date.getMonth(), 1))
+        : mode === "day"
+          ? iso(date)
+          : iso(days[0]),
+    end =
+      mode === "month"
+        ? iso(new Date(date.getFullYear(), date.getMonth() + 1, 0))
+        : mode === "day"
+          ? iso(date)
+          : iso(days[6]);
+  const movePeriod = (direction: number) => {
+    setDate((d) =>
+      mode === "month"
+        ? new Date(d.getFullYear(), d.getMonth() + direction, 1, 12)
+        : add(d, direction * (mode === "week" ? 7 : 1)),
+    );
+  };
   const bookings = useMemo(
     () =>
       data.reservations.filter(
@@ -557,38 +574,70 @@ function App() {
               <div className="date-nav">
                 <button
                   className="outline"
-                  onClick={() =>
-                    setDate((d) => add(d, mode === "week" ? -7 : -1))
+                  aria-label={
+                    mode === "month"
+                      ? "Mês anterior"
+                      : mode === "week"
+                        ? "Semana anterior"
+                        : "Dia anterior"
                   }
+                  onClick={() => movePeriod(-1)}
                 >
                   <ChevronLeft />
                 </button>
-                <button className="period" onClick={() => setDate(today)}>
+                <button
+                  className="period"
+                  title="Voltar para hoje"
+                  onClick={() => setDate(new Date())}
+                >
                   <CalendarDays />
-                  {mode === "week"
-                    ? `${label(days[0])} — ${label(days[6])}`
-                    : label(date)}
+                  {mode === "month"
+                    ? new Intl.DateTimeFormat("pt-BR", {
+                        month: "long",
+                        year: "numeric",
+                      }).format(date)
+                    : mode === "week"
+                      ? `${label(days[0])} — ${label(days[6])}`
+                      : label(date)}
                 </button>
                 <button
                   className="outline"
-                  onClick={() =>
-                    setDate((d) => add(d, mode === "week" ? 7 : 1))
+                  aria-label={
+                    mode === "month"
+                      ? "Próximo mês"
+                      : mode === "week"
+                        ? "Próxima semana"
+                        : "Próximo dia"
                   }
+                  onClick={() => movePeriod(1)}
                 >
                   <ChevronRight />
                 </button>
-                <div className="view-switch">
+                <div
+                  className="view-switch"
+                  role="group"
+                  aria-label="Visualização da agenda"
+                >
                   <button
                     className={mode === "day" ? "active" : ""}
+                    aria-pressed={mode === "day"}
                     onClick={() => setMode("day")}
                   >
                     Dia
                   </button>
                   <button
                     className={mode === "week" ? "active" : ""}
+                    aria-pressed={mode === "week"}
                     onClick={() => setMode("week")}
                   >
                     Semana
+                  </button>
+                  <button
+                    className={mode === "month" ? "active" : ""}
+                    aria-pressed={mode === "month"}
+                    onClick={() => setMode("month")}
+                  >
+                    Mês
                   </button>
                 </div>
               </div>
@@ -613,11 +662,13 @@ function App() {
                   className="report-button"
                   onClick={() =>
                     exportReport(
-                      mode === "day"
-                        ? bookings.filter((b) => b.date === iso(date))
-                        : bookings,
+                      bookings,
                       data,
-                      mode === "week" ? "da semana" : "do dia",
+                      mode === "month"
+                        ? "do mês"
+                        : mode === "week"
+                          ? "da semana"
+                          : "do dia",
                     )
                   }
                 >
@@ -629,13 +680,13 @@ function App() {
               <Summary
                 icon={<CalendarDays />}
                 tone="blue"
-                value={
-                  mode === "day"
-                    ? bookings.filter((b) => b.date === iso(date)).length
-                    : bookings.length
-                }
+                value={bookings.length}
                 label={
-                  mode === "day" ? "reservas no dia" : "reservas na semana"
+                  mode === "month"
+                    ? "reservas no mês"
+                    : mode === "day"
+                      ? "reservas no dia"
+                      : "reservas na semana"
                 }
               />
               <Summary
@@ -651,7 +702,26 @@ function App() {
                 label="cadastros pendentes"
               />
             </section>
-            {mode === "week" ? (
+            {mode === "month" ? (
+              <Month
+                date={date}
+                data={data}
+                room={room}
+                bookings={bookings}
+                filtered={room !== "all" || Boolean(search.trim())}
+                select={setSelected}
+                showDay={(d) => {
+                  setDate(d);
+                  setMode("day");
+                }}
+                open={(d) => {
+                  setDate(d);
+                  setFormBooking(null);
+                  setFormSpaceId(room === "all" ? null : +room);
+                  setFormOpen(true);
+                }}
+              />
+            ) : mode === "week" ? (
               <Week
                 days={days}
                 data={data}
